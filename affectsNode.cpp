@@ -83,10 +83,7 @@ private:
 
 	void setProjectionMatrixDirty();
 
-	friend void cameraAttributeChanged(MNodeMessage::AttributeMessage msg, 
-										MPlug & plug,
-										MPlug & otherPlug, 
-										void* userData );
+	friend void cameraNodePlugDirty(MObject &node, MPlug &plug, void *clientData);
 
 	friend void cameraWorldMatrixChangeCallback(MObject &transformNode, 
 												MDagMessage::MatrixModifiedFlags &modified,
@@ -132,7 +129,7 @@ MStatus affects::compute( const MPlug& plug, MDataBlock& data )
 	return MStatus::kSuccess;
 }
 
-// Create an attribute change callback on the camera when connection is made
+// Create a node plug dirty callback on the camera when connection is made
 MStatus affects::connectionMade( const MPlug& plug, const MPlug& otherPlug, bool asSrc )
 {
 	if(plug == inputCamera)
@@ -151,7 +148,7 @@ MStatus affects::connectionMade( const MPlug& plug, const MPlug& otherPlug, bool
 			MFnCamera fnCam(cameraNode);			
 			projectionMatrixValue = fnCam.projectionMatrix();					
 			setProjectionMatrixDirty();
-			cameraCallbackId = MNodeMessage::addAttributeChangedCallback(cameraNode, cameraAttributeChanged, this);
+			cameraCallbackId = MNodeMessage::addNodeDirtyPlugCallback(cameraNode, cameraNodePlugDirty, this);
 
 			// Add world transform matrix
 			MSelectionList sel;
@@ -166,7 +163,7 @@ MStatus affects::connectionMade( const MPlug& plug, const MPlug& otherPlug, bool
 	return MPxNode::connectionMade(plug, otherPlug, asSrc);
 }
 
-// Remove callback when connection is broken.
+// Remove callbacks when connection is broken.
 MStatus affects::connectionBroken( const MPlug& plug, const MPlug& otherPlug, bool asSrc )
 {
 	if(plug == inputCamera)
@@ -211,8 +208,8 @@ MStatus affects::initialize()
 
 	// Use for projection matrix
 	projectionMatrix = matAttr.create(PROJECTION_MATRIX_LN, PROJECTION_MATRIX_SN, MFnMatrixAttribute::kFloat);
-	//matAttr.setInternal(true);
-	
+
+	// Message attribute 
 	inputCamera = msgAttr.create(INPUT_CAMERA_LN, INPUT_CAMERA_SN);
 
 	// For attributeAffects
@@ -227,13 +224,10 @@ MStatus affects::initialize()
 	return( MS::kSuccess );
 }
 
-// Attribute change callback
-void cameraAttributeChanged(MNodeMessage::AttributeMessage msg, 
-							MPlug & plug,
-							MPlug & otherPlug, 
-							void* userData )
+// Node plug dirty change callback
+void cameraNodePlugDirty(MObject &node, MPlug &plug, void *clientData)
 {
-	affects* affectNode = (affects*)userData;
+	affects* affectNode = (affects*)clientData;
 
 	if(affectNode->isCameraSet)
 	{
